@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Dino - 24/7 Stream</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-container {
+            background: white;
+            border: 3px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .game-header h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        
+        .game-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .game-stats div {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #333;
+            background: #f8f8f8;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .controls button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
+        .controls button:hover {
+            background: #45a049;
+        }
+        
+        .controls button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .auto-jump-status {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .auto-jump-status.active {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🦖 CHROME DINO</h1>
+            <p>24/7 Auto-Play Stream Version</p>
+        </div>
+        
+        <div class="game-stats">
+            <div id="score">Score: 0</div>
+            <div id="highScore">High: 0</div>
+            <div id="distance">Distance: 0m</div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="300"></canvas>
+        
+        <div class="controls">
+            <button id="startBtn">Start Game</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="resetBtn">Reset</button>
+            <button id="autoJumpBtn">Enable Auto-Jump</button>
+        </div>
+        
+        <div class="auto-jump-status" id="autoJumpStatus">
+            Auto-Jump: Disabled
+        </div>
+    </div>
+
+    <script>
+        class DinoGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                
+                // Game state
+                this.gameRunning = false;
+                this.gamePaused = false;
+                this.score = 0;
+                this.highScore = localStorage.getItem('dinoHighScore') || 0;
+                this.distance = 0;
+                this.gameSpeed = 1;
+                this.autoJump = false;
+                
+                // Dino properties
+                this.dino = {
+                    x: 50,
+                    y: this.height - 60,
+                    width: 40,
+                    height: 40,
+                    velocityY: 0,
+                    jumping: false,
+                    gravity: 0.8,
+                    jumpPower: -15
+                };
+                
+                // Obstacles
+                this.obstacles = [];
+                this.obstacleTypes = ['cactus', 'bird'];
+                this.obstacleTimer = 0;
+                this.obstacleInterval = 1500;
+                
+                // Clouds
+                this.clouds = [];
+                this.cloudTimer = 0;
+                this.cloudInterval = 3000;
+                
+                // Ground
+                this.groundY = this.height - 20;
+                this.groundOffset = 0;
+                
+                // Initialize
+                this.init();
+                this.setupEventListeners();
+                this.updateHighScore();
+            }
+            
+            init() {
+                // Create initial clouds
+                for (let i = 0; i < 3; i++) {
+                    this.clouds.push({
+                        x: Math.random() * this.width,
+                        y: Math.random() * 100 + 20,
+                        width: Math.random() * 60 + 40,
+                        height: Math.random() * 30 + 20,
+                        speed: Math.random() * 0.5 + 0.2
+                    });
+                }
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+                document.getElementById('autoJumpBtn').addEventListener('click', () => this.toggleAutoJump());
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' || e.code === 'ArrowUp') {
+                        e.preventDefault();
+                        if (this.gameRunning && !this.gamePaused) {
+                            this.jump();
+                        }
+                    }
+                });
+            }
+            
+            startGame() {
+                if (!this.gameRunning) {
+                    this.gameRunning = true;
+                    this.gamePaused = false;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('pauseBtn').disabled = false;
+                    this.gameLoop();
+                }
+            }
+            
+            togglePause() {
+                if (this.gameRunning) {
+                    this.gamePaused = !this.gamePaused;
+                    document.getElementById('pauseBtn').textContent = this.gamePaused ? 'Resume' : 'Pause';
+                }
+            }
+            
+            resetGame() {
+                this.gameRunning = false;
+                this.gamePaused = false;
+                this.score = 0;
+                this.distance = 0;
+                this.gameSpeed = 1;
+                this.obstacles = [];
+                this.dino.y = this.height - 60;
+                this.dino.velocityY = 0;
+                this.dino.jumping = false;
+                this.groundOffset = 0;
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('pauseBtn').textContent = 'Pause';
+                
+                this.updateDisplay();
+            }
+            
+            toggleAutoJump() {
+                this.autoJump = !this.autoJump;
+                const status = document.getElementById('autoJumpStatus');
+                const btn = document.getElementById('autoJumpBtn');
+                
+                if (this.autoJump) {
+                    status.textContent = 'Auto-Jump: Enabled';
+                    status.className = 'auto-jump-status active';
+                    btn.textContent = 'Disable Auto-Jump';
+                    btn.style.background = '#f44336';
+                } else {
+                    status.textContent = 'Auto-Jump: Disabled';
+                    status.className = 'auto-jump-status';
+                    btn.textContent = 'Enable Auto-Jump';
+                    btn.style.background = '#4CAF50';
+                }
+            }
+            
+            jump() {
+                if (!this.dino.jumping) {
+                    this.dino.velocityY = this.dino.jumpPower;
+                    this.dino.jumping = true;
+                }
+            }
+            
+            updateDino() {
+                // Apply gravity
+                this.dino.velocityY += this.dino.gravity;
+                this.dino.y += this.dino.velocityY;
+                
+                // Ground collision
+                if (this.dino.y >= this.height - 60) {
+                    this.dino.y = this.height - 60;
+                    this.dino.velocityY = 0;
+                    this.dino.jumping = false;
+                }
+                
+                // Auto-jump logic
+                if (this.autoJump && this.gameRunning && !this.gamePaused) {
+                    this.checkAndJump();
+                }
+            }
+            
+            checkAndJump() {
+                // Find the closest obstacle
+                let closestObstacle = null;
+                let minDistance = Infinity;
+                
+                for (let obstacle of this.obstacles) {
+                    const distance = obstacle.x - this.dino.x;
+                    if (distance > 0 && distance < minDistance) {
+                        minDistance = distance;
+                        closestObstacle = obstacle;
+                    }
+                }
+                
+                // Auto-jump when obstacle is close enough
+                if (closestObstacle && minDistance < 150 && !this.dino.jumping) {
+                    this.jump();
+                }
+            }
+            
+            updateObstacles() {
+                // Move obstacles
+                for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = this.obstacles[i];
+                    obstacle.x -= 5 * this.gameSpeed;
+                    
+                    // Remove off-screen obstacles
+                    if (obstacle.x + obstacle.width < 0) {
+                        this.obstacles.splice(i, 1);
+                        this.score += 10;
+                    }
+                }
+                
+                // Spawn new obstacles
+                this.obstacleTimer += 16; // Assuming 60fps
+                if (this.obstacleTimer >= this.obstacleInterval) {
+                    this.spawnObstacle();
+                    this.obstacleTimer = 0;
+                    this.obstacleInterval = Math.max(800, this.obstacleInterval - 2);
+                }
+            }
+            
+            spawnObstacle() {
+                const type = this.obstacleTypes[Math.floor(Math.random() * this.obstacleTypes.length)];
+                let obstacle;
+                
+                if (type === 'cactus') {
+                    obstacle = {
+                        x: this.width,
+                        y: this.height - 60,
+                        width: 30,
+                        height: 60,
+                        type: 'cactus'
+                    };
+                } else {
+                    obstacle = {
+                        x: this.width,
+                        y: this.height - 120,
+                        width: 50,
+                        height: 30,
+                        type: 'bird'
+                    };
+                }
+                
+                this.obstacles.push(obstacle);
+            }
+            
+            updateClouds() {
+                // Move clouds
+                for (let i = this.clouds.length - 1; i >= 0; i--) {
+                    const cloud = this.clouds[i];
+                    cloud.x -= cloud.speed;
+                    
+                    // Reset cloud position when off-screen
+                    if (cloud.x + cloud.width < 0) {
+                        cloud.x = this.width + Math.random() * 100;
+                        cloud.y = Math.random() * 100 + 20;
+                    }
+                }
+            }
+            
+            checkCollisions() {
+                for (let obstacle of this.obstacles) {
+                    if (this.dino.x < obstacle.x + obstacle.width &&
+                        this.dino.x + this.dino.width > obstacle.x &&
+                        this.dino.y < obstacle.y + obstacle.height &&
+                        this.dino.y + this.dino.height > obstacle.y) {
+                        
+                        // Game over - but we'll make it never-ending!
+                        this.handleGameOver();
+                        return;
+                    }
+                }
+            }
+            
+            handleGameOver() {
+                // Instead of ending the game, we'll reset the dino position and continue
+                this.dino.y = this.height - 60;
+                this.dino.velocityY = 0;
+                this.dino.jumping = false;
+                
+                // Remove all obstacles
+                this.obstacles = [];
+                
+                // Increase score for surviving
+                this.score += 50;
+                
+                // Slightly increase game speed
+                this.gameSpeed += 0.1;
+            }
+            
+            updateGame() {
+                if (!this.gameRunning || this.gamePaused) return;
+                
+                this.updateDino();
+                this.updateObstacles();
+                this.updateClouds();
+                this.checkCollisions();
+                
+                // Update distance and score
+                this.distance += 0.1 * this.gameSpeed;
+                this.score += 0.1;
+                
+                // Update high score
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('dinoHighScore', this.highScore);
+                }
+                
+                this.updateDisplay();
+            }
+            
+            updateDisplay() {
+                document.getElementById('score').textContent = `Score: ${Math.floor(this.score)}`;
+                document.getElementById('highScore').textContent = `High: ${Math.floor(this.highScore)}`;
+                document.getElementById('distance').textContent = `Distance: ${Math.floor(this.distance)}m`;
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                // Draw sky gradient
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#E0F6FF');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                
+                // Draw clouds
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for (let cloud of this.clouds) {
+                    this.ctx.fillRect(cloud.x, cloud.y, cloud.width, cloud.height);
+                }
+                
+                // Draw ground
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.fillRect(0, this.groundY, this.width, 20);
+                
+                // Draw ground pattern
+                this.ctx.fillStyle = '#654321';
+                for (let i = 0; i < this.width; i += 30) {
+                    this.ctx.fillRect(i + this.groundOffset, this.groundY, 2, 20);
+                }
+                this.groundOffset = (this.groundOffset + 2) % 30;
+                
+                // Draw dino
+                this.ctx.fillStyle = '#333';
+                this.ctx.fillRect(this.dino.x, this.dino.y, this.dino.width, this.dino.height);
+                
+                // Draw dino details
+                this.ctx.fillStyle = '#666';
+                this.ctx.fillRect(this.dino.x + 5, this.dino.y + 5, 30, 30);
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(this.dino.x + 10, this.dino.y + 10, 20, 20);
+                
+                // Draw obstacles
+                for (let obstacle of this.obstacles) {
+                    if (obstacle.type === 'cactus') {
+                        this.ctx.fillStyle = '#228B22';
+                        this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        // Cactus details
+                        this.ctx.fillStyle = '#006400';
+                        this.ctx.fillRect(obstacle.x + 10, obstacle.y, 10, obstacle.height);
+                    } else {
+                        this.ctx.fillStyle = '#8B4513';
+                        this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        // Bird details
+                        this.ctx.fillStyle = '#FFD700';
+                        this.ctx.fillRect(obstacle.x + 5, obstacle.y + 5, 10, 10);
+                    }
+                }
+                
+                // Draw score overlay
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(10, 10, 200, 60);
+                this.ctx.fillStyle = '#FFF';
+                this.ctx.font = '16px Arial';
+                this.ctx.fillText(`Score: ${Math.floor(this.score)}`, 20, 30);
+                this.ctx.fillText(`Speed: ${this.gameSpeed.toFixed(1)}x`, 20, 50);
+            }
+            
+            gameLoop() {
+                if (!this.gameRunning) return;
+                
+                this.updateGame();
+                this.draw();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // Initialize game when page loads
+        window.addEventListener('load', () => {
+            const game = new DinoGame();
+            
+            // Auto-start after 2 seconds for streaming
+            setTimeout(() => {
+                if (game.autoJump) {
+                    game.startGame();
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

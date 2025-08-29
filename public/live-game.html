@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Play Dino - StreamDino</title></head>
+<body>
+  <h1>Play Chrome Dino</h1>
+  <p>If the embedded game is blocked in your environment, use the fallback below.</p>
+  <iframe src="https://elgoog.im/t-rex/" style="width:100%;height:600px;border:1px solid #ccc;"></iframe>
+  <hr/>
+  <h2>Fallback: simple animated demo</h2>
+  <canvas id="demo" width="800" height="150" style="border:1px solid #ccc"></canvas>
+  <script>
+    const c = document.getElementById('demo');
+    const ctx = c.getContext('2d');
+    let x = 0;
+    function draw(){
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,c.width,c.height);
+      // ground
+      ctx.fillStyle = '#ddd';
+      ctx.fillRect(0,120,c.width,30);
+      // dino (box)
+      ctx.fillStyle = '#000';
+      ctx.fillRect(50 + (x%200), 80, 40, 40);
+      x += 2;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>
