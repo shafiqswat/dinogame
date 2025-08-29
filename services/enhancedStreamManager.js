@@ -16,25 +16,14 @@ class EnhancedStreamManager {
     this.restartCooldown = 60000; // 1 minute
     this.lastRestartTime = 0;
     this.healthCheckInterval = null;
-    this.gameCheckInterval = null;
-    this.gameStats = {
-      score: 0,
-      highScore: 0,
-      distance: 0,
-      gameRunning: false,
-      autoJump: true,
-    };
   }
 
   async initialize() {
     try {
       logger.info("Initializing Enhanced Stream Manager...");
 
-      // Start health monitoring
+      // Start health monitoring (stream-only)
       this.startHealthMonitoring();
-
-      // Start game simulation
-      this.startGameSimulation();
 
       logger.info("Enhanced Stream Manager initialized successfully");
       return true;
@@ -47,25 +36,7 @@ class EnhancedStreamManager {
     }
   }
 
-  startGameSimulation() {
-    // Simulate game running state
-    this.gameStats.gameRunning = true;
-    this.gameStats.autoJump = true;
-
-    // Update game stats every second
-    setInterval(() => {
-      if (this.gameStats.gameRunning) {
-        this.gameStats.score += 1;
-        this.gameStats.distance += 0.1;
-
-        if (this.gameStats.score > this.gameStats.highScore) {
-          this.gameStats.highScore = this.gameStats.score;
-        }
-      }
-    }, 1000);
-
-    logger.info("Game simulation started");
-  }
+  // Video-only streaming (no game logic)
 
   async startStream() {
     try {
@@ -108,29 +79,37 @@ class EnhancedStreamManager {
 
   async startScreenCapture(rtmp) {
     try {
-      // Use native ffmpeg command for test pattern streaming
-      // This approach works reliably on Replit without complex dependencies
+      // Stream a local video file in loop to RTMP
+      const videoPath = process.env.VIDEO_FILE
+        ? path.isAbsolute(process.env.VIDEO_FILE)
+          ? process.env.VIDEO_FILE
+          : path.join(__dirname, "..", process.env.VIDEO_FILE)
+        : path.join(__dirname, "..", "public", "stream.mp4");
+
+      if (!fs.existsSync(videoPath)) {
+        throw new Error(
+          `Video file not found at ${videoPath}. Set VIDEO_FILE env or place stream.mp4 in public/`
+        );
+      }
+
       const ffmpegArgs = [
-        "-f",
-        "lavfi",
+        "-re", // read input at native frame rate
+        "-stream_loop",
+        "-1", // loop indefinitely
         "-i",
-        "testsrc2=size=1280x720:rate=30",
-        "-f",
-        "lavfi",
-        "-i",
-        "sine=frequency=1000:duration=1",
+        videoPath,
         "-c:v",
         "libx264",
         "-preset",
         "veryfast",
+        "-pix_fmt",
+        "yuv420p",
         "-b:v",
         "2500k",
         "-maxrate",
         "2500k",
         "-bufsize",
         "5000k",
-        "-pix_fmt",
-        "yuv420p",
         "-g",
         "60",
         "-c:a",
@@ -144,44 +123,11 @@ class EnhancedStreamManager {
         rtmp,
       ];
 
-      logger.info("Starting ffmpeg with test pattern for streaming...");
+      logger.info("Starting ffmpeg to loop video:", videoPath);
 
-      // Try to find ffmpeg in common locations
-      let ffmpegPath = "ffmpeg";
-
-      // First try ffmpeg-static (bundled with npm package)
-      try {
-        const ffmpegStatic = require("ffmpeg-static");
-        if (ffmpegStatic) {
-          ffmpegPath = ffmpegStatic;
-          logger.info(`Using ffmpeg-static at: ${ffmpegPath}`);
-        }
-      } catch (error) {
-        // Try system ffmpeg
-        try {
-          const { execSync } = require("child_process");
-          execSync("which ffmpeg", { stdio: "ignore" });
-        } catch (error) {
-          // Try alternative paths
-          const possiblePaths = [
-            "/usr/bin/ffmpeg",
-            "/usr/local/bin/ffmpeg",
-            "/opt/ffmpeg/bin/ffmpeg",
-            "/snap/bin/ffmpeg",
-          ];
-
-          for (const path of possiblePaths) {
-            try {
-              require("fs").accessSync(path, require("fs").constants.X_OK);
-              ffmpegPath = path;
-              logger.info(`Using FFmpeg at: ${ffmpegPath}`);
-              break;
-            } catch (e) {
-              // Path not accessible, try next
-            }
-          }
-        }
-      }
+      // Use bundled ffmpeg from @ffmpeg-installer/ffmpeg
+      const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+      logger.info(`Using FFmpeg (installer) at: ${ffmpegPath}`);
 
       // Start ffmpeg
       this.ffmpegProc = spawn(ffmpegPath, ffmpegArgs, {
@@ -291,41 +237,10 @@ class EnhancedStreamManager {
         // Check stream uptime
         const uptime = Date.now() - this.streamStartTime;
         logger.info(`Stream uptime: ${Math.floor(uptime / 1000)}s`);
-
-        // Simulate game health checks
-        if (!this.gameStats.gameRunning) {
-          logger.warn("Game stopped, restarting simulation...");
-          this.gameStats.gameRunning = true;
-          this.gameStats.score = 0;
-        }
-
-        if (!this.gameStats.autoJump) {
-          logger.warn("Auto-jump disabled, re-enabling...");
-          this.gameStats.autoJump = true;
-        }
       } catch (error) {
         logger.error("Health check error:", error.message);
       }
     }, 30000);
-
-    // Game check every 10 seconds
-    this.gameCheckInterval = setInterval(async () => {
-      try {
-        if (!this.streaming) return;
-
-        // Ensure game is running
-        if (!this.gameStats.gameRunning) {
-          this.gameStats.gameRunning = true;
-        }
-
-        // Ensure auto-jump is enabled
-        if (!this.gameStats.autoJump) {
-          this.gameStats.autoJump = true;
-        }
-      } catch (error) {
-        logger.error("Game check error:", error.message);
-      }
-    }, 10000);
   }
 
   async stopStream() {
@@ -342,11 +257,6 @@ class EnhancedStreamManager {
       if (this.healthCheckInterval) {
         clearInterval(this.healthCheckInterval);
         this.healthCheckInterval = null;
-      }
-
-      if (this.gameCheckInterval) {
-        clearInterval(this.gameCheckInterval);
-        this.gameCheckInterval = null;
       }
 
       this.streaming = false;
@@ -376,48 +286,7 @@ class EnhancedStreamManager {
       uptime: this.streamStartTime ? Date.now() - this.streamStartTime : 0,
       restartAttempts: this.restartAttempts,
       maxRestartAttempts: this.maxRestartAttempts,
-      gameStats: this.gameStats,
     };
-  }
-
-  getGameScreenshot() {
-    // Return a simple status instead of screenshot
-    return {
-      status: "Game running",
-      score: this.gameStats.score,
-      highScore: this.gameStats.highScore,
-      distance: this.gameStats.distance,
-      autoJump: this.gameStats.autoJump,
-    };
-  }
-
-  // Game control methods
-  startGame() {
-    this.gameStats.gameRunning = true;
-    this.gameStats.score = 0;
-    this.gameStats.distance = 0;
-    logger.info("Game started");
-  }
-
-  stopGame() {
-    this.gameStats.gameRunning = false;
-    logger.info("Game stopped");
-  }
-
-  toggleAutoJump() {
-    this.gameStats.autoJump = !this.gameStats.autoJump;
-    logger.info(
-      `Auto-jump ${this.gameStats.autoJump ? "enabled" : "disabled"}`
-    );
-    return this.gameStats.autoJump;
-  }
-
-  resetGame() {
-    this.gameStats.score = 0;
-    this.gameStats.distance = 0;
-    this.gameStats.gameRunning = true;
-    this.gameStats.autoJump = true;
-    logger.info("Game reset");
   }
 }
 

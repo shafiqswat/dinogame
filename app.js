@@ -81,23 +81,7 @@ class StreamDino24_7 {
       }
     });
 
-    // Live game page
-    this.app.get("/live", (req, res) => {
-      const gamePath = path.join(__dirname, "public", "dino-game.html");
-      if (require("fs").existsSync(gamePath)) {
-        res.sendFile(gamePath);
-      } else {
-        res.json({
-          status: "error",
-          message:
-            "Game file not found. Please ensure dino-game.html exists in public folder.",
-          availableEndpoints: {
-            health: "/health",
-            status: "/api/status",
-          },
-        });
-      }
-    });
+    // Removed live game page - video-only streaming now
 
     // Stream status API
     this.app.get("/api/status", (req, res) => {
@@ -169,27 +153,7 @@ class StreamDino24_7 {
       }
     });
 
-    // Screenshot endpoint
-    this.app.get("/api/screenshot", async (req, res) => {
-      try {
-        if (!this.enhancedStreamManager) {
-          return res
-            .status(404)
-            .json({ error: "Stream manager not initialized" });
-        }
-
-        const screenshot = await this.enhancedStreamManager.getGameScreenshot();
-        if (screenshot) {
-          res.set("Content-Type", "image/png");
-          res.send(screenshot);
-        } else {
-          res.status(404).json({ error: "Failed to capture screenshot" });
-        }
-      } catch (error) {
-        logger.error("Error capturing screenshot:", error.message);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
+    // Removed screenshot endpoint - not needed for video-only streaming
 
     // System info endpoint
     this.app.get("/api/system", (req, res) => {

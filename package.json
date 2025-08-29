@@ -1,21 +1,15 @@
 {
   "name": "streamdino-24-7",
   "version": "2.0.0",
-  "description": "24/7 Chrome Dino Game Live Stream with Auto-Jump and Never-Ending Gameplay",
+  "description": "24/7 YouTube RTMP stream looping a local video",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
-    "stream": "node app.js --stream-only",
-    "test": "node test/game-test.js"
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "ffmpeg-static": "^5.2.0",
-    "ws": "^8.14.2",
-    "cron": "^3.1.6",
-    "node-cron": "^3.0.3",
-    "axios": "^1.6.2",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
@@ -25,12 +19,11 @@
     "node": ">=18.0.0"
   },
   "keywords": [
-    "chrome-dino",
     "live-stream",
     "youtube",
+    "rtmp",
     "24-7",
-    "automation",
-    "gaming"
+    "ffmpeg"
   ],
   "author": "StreamDino Developer",
   "license": "MIT"
