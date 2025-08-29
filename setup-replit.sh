@@ -11,7 +11,20 @@ echo "🔧 Installing system dependencies..."
 sudo apt-get install -y \
     ffmpeg \
     curl \
-    wget
+    wget \
+    software-properties-common
+
+# Ensure FFmpeg is properly installed and accessible
+echo "🎬 Verifying FFmpeg installation..."
+if ! command -v ffmpeg &> /dev/null; then
+    echo "❌ FFmpeg not found, trying alternative installation..."
+    sudo apt-get install -y ubuntu-restricted-extras
+    sudo apt-get install -y ffmpeg
+fi
+
+# Check FFmpeg version
+echo "✅ FFmpeg version:"
+ffmpeg -version | head -n 1
 
 # Install Node.js dependencies
 echo "📚 Installing Node.js dependencies..."
@@ -60,3 +73,4 @@ echo ""
 echo "🎮 Happy streaming!"
 echo ""
 echo "💡 Note: This version uses game simulation instead of Puppeteer for better Replit compatibility"
+echo "🎬 FFmpeg is now installed and ready for streaming"

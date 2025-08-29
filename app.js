@@ -64,12 +64,39 @@ class StreamDino24_7 {
 
     // Main page
     this.app.get("/", (req, res) => {
-      res.sendFile(path.join(__dirname, "public", "health.html"));
+      const healthPath = path.join(__dirname, "public", "health.html");
+      if (require("fs").existsSync(healthPath)) {
+        res.sendFile(healthPath);
+      } else {
+        res.json({
+          status: "ok",
+          message: "StreamDino 24/7 is running!",
+          endpoints: {
+            health: "/health",
+            live: "/live",
+            status: "/api/status",
+            system: "/api/system",
+          },
+        });
+      }
     });
 
     // Live game page
     this.app.get("/live", (req, res) => {
-      res.sendFile(path.join(__dirname, "public", "dino-game.html"));
+      const gamePath = path.join(__dirname, "public", "dino-game.html");
+      if (require("fs").existsSync(gamePath)) {
+        res.sendFile(gamePath);
+      } else {
+        res.json({
+          status: "error",
+          message:
+            "Game file not found. Please ensure dino-game.html exists in public folder.",
+          availableEndpoints: {
+            health: "/health",
+            status: "/api/status",
+          },
+        });
+      }
     });
 
     // Stream status API
