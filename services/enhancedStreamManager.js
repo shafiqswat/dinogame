@@ -146,8 +146,45 @@ class EnhancedStreamManager {
 
       logger.info("Starting ffmpeg with test pattern for streaming...");
 
+      // Try to find ffmpeg in common locations
+      let ffmpegPath = "ffmpeg";
+
+      // First try ffmpeg-static (bundled with npm package)
+      try {
+        const ffmpegStatic = require("ffmpeg-static");
+        if (ffmpegStatic) {
+          ffmpegPath = ffmpegStatic;
+          logger.info(`Using ffmpeg-static at: ${ffmpegPath}`);
+        }
+      } catch (error) {
+        // Try system ffmpeg
+        try {
+          const { execSync } = require("child_process");
+          execSync("which ffmpeg", { stdio: "ignore" });
+        } catch (error) {
+          // Try alternative paths
+          const possiblePaths = [
+            "/usr/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/ffmpeg/bin/ffmpeg",
+            "/snap/bin/ffmpeg",
+          ];
+
+          for (const path of possiblePaths) {
+            try {
+              require("fs").accessSync(path, require("fs").constants.X_OK);
+              ffmpegPath = path;
+              logger.info(`Using FFmpeg at: ${ffmpegPath}`);
+              break;
+            } catch (e) {
+              // Path not accessible, try next
+            }
+          }
+        }
+      }
+
       // Start ffmpeg
-      this.ffmpegProc = spawn("ffmpeg", ffmpegArgs, {
+      this.ffmpegProc = spawn(ffmpegPath, ffmpegArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
