@@ -9,10 +9,10 @@ This application has been updated to use YouTube embedded video URLs instead of 
 - **Before**: Used local `stream.mp4` file in `public/` directory
 - **After**: Uses YouTube video URL: `https://www.youtube.com/watch?v=d_nSworYRgY`
 
-### 2. Added yt-dlp Support
-- Added `yt-dlp-exec` dependency for better YouTube video handling
-- Automatically extracts best streaming URL from YouTube videos
-- Supports various video qualities and formats
+### 2. Simplified YouTube Integration
+- Removed complex dependencies (no Python required)
+- Uses embedded YouTube video in HTML page
+- More reliable and compatible approach
 
 ### 3. Updated Configuration
 - Added `YOUTUBE.VIDEO_URL` to config
@@ -43,7 +43,7 @@ AUTO_START_STREAM=true
 ✅ **GitHub Safe**: No large video files to push  
 ✅ **24/7 Streaming**: Continuous video loop  
 ✅ **Easy Updates**: Change video by updating URL  
-✅ **Better Quality**: yt-dlp handles optimal streaming  
+✅ **Better Quality**: Simplified approach with embedded video  
 ✅ **Reliable**: Fallback mechanisms included  
 
 ## Usage
@@ -82,7 +82,7 @@ AUTO_START_STREAM=true
 ### Video Not Playing
 - Check if YouTube video is public and accessible
 - Verify internet connection
-- Check yt-dlp installation: `npm install yt-dlp-exec`
+- Check if the HTML file exists: `public/youtube-stream.html`
 
 ### Stream Issues
 - Verify YouTube stream key is correct

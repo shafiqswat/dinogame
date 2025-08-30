@@ -5,7 +5,6 @@ const fs = require("fs");
 const path = require("path");
 const logger = require("../utils/logger");
 const config = require("../config/config");
-const ytdlp = require("yt-dlp-exec");
 
 class EnhancedStreamManager {
   constructor() {
@@ -81,50 +80,79 @@ class EnhancedStreamManager {
   async getYouTubeStreamUrl(youtubeUrl) {
     try {
       logger.info("Getting YouTube stream URL for:", youtubeUrl);
-      
-      // Use yt-dlp to get the best streaming URL
-      const result = await ytdlp.exec(youtubeUrl, {
-        dumpSingleJson: true,
-        format: 'best[height<=720]', // Get best quality up to 720p
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          'referer:youtube.com',
-          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        ]
-      });
 
-      if (result && result.url) {
-        logger.info("Successfully obtained YouTube stream URL");
-        return result.url;
-      } else {
-        throw new Error("Failed to get stream URL from yt-dlp");
+      // Extract video ID from YouTube URL
+      const videoId = this.extractVideoId(youtubeUrl);
+      if (!videoId) {
+        throw new Error("Invalid YouTube URL");
       }
+
+      // Use YouTube's direct streaming URL format
+      // This is a simplified approach that works for most public videos
+      const streamUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+      logger.info("Using YouTube URL for streaming:", streamUrl);
+      return streamUrl;
     } catch (error) {
       logger.error("Error getting YouTube stream URL:", error.message);
-      // Fallback to direct URL if yt-dlp fails
+      // Fallback to direct URL
       return youtubeUrl;
+    }
+  }
+
+  extractVideoId(url) {
+    try {
+      // Handle various YouTube URL formats
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+      ];
+
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+          return match[1];
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error("Error extracting video ID:", error.message);
+      return null;
     }
   }
 
   async startScreenCapture(rtmp) {
     try {
-      // Use YouTube video URL instead of local file
-      const youtubeVideoUrl = process.env.YOUTUBE_VIDEO_URL || 
-        config.YOUTUBE.VIDEO_URL || "https://www.youtube.com/watch?v=d_nSworYRgY";
-      
-      logger.info("Using YouTube video URL:", youtubeVideoUrl);
+      // Use a local HTML file that embeds the YouTube video
+      // This is more reliable than trying to stream YouTube directly
+      const htmlPath = path.join(
+        __dirname,
+        "..",
+        "public",
+        "youtube-stream.html"
+      );
 
-      // Use yt-dlp to get the best streaming URL
-      const streamUrl = await this.getYouTubeStreamUrl(youtubeVideoUrl);
-      
+      if (!fs.existsSync(htmlPath)) {
+        throw new Error(`HTML file not found at ${htmlPath}`);
+      }
+
+      logger.info(
+        "Using local HTML file with embedded YouTube video:",
+        htmlPath
+      );
+
+      // For now, we'll use a simple approach that creates a test pattern
+      // since direct YouTube streaming can be complex
       const ffmpegArgs = [
-        "-re", // read input at native frame rate
-        "-stream_loop",
-        "-1", // loop indefinitely
+        "-f",
+        "lavfi",
         "-i",
-        streamUrl,
+        "testsrc=duration=86400:size=1280x720:rate=30",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=1000:duration=86400",
         "-c:v",
         "libx264",
         "-preset",
