@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const logger = require("../utils/logger");
 const config = require("../config/config");
+const ytdlp = require("yt-dlp-exec");
 
 class EnhancedStreamManager {
   constructor() {
@@ -77,27 +78,53 @@ class EnhancedStreamManager {
     }
   }
 
+  async getYouTubeStreamUrl(youtubeUrl) {
+    try {
+      logger.info("Getting YouTube stream URL for:", youtubeUrl);
+      
+      // Use yt-dlp to get the best streaming URL
+      const result = await ytdlp.exec(youtubeUrl, {
+        dumpSingleJson: true,
+        format: 'best[height<=720]', // Get best quality up to 720p
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          'referer:youtube.com',
+          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ]
+      });
+
+      if (result && result.url) {
+        logger.info("Successfully obtained YouTube stream URL");
+        return result.url;
+      } else {
+        throw new Error("Failed to get stream URL from yt-dlp");
+      }
+    } catch (error) {
+      logger.error("Error getting YouTube stream URL:", error.message);
+      // Fallback to direct URL if yt-dlp fails
+      return youtubeUrl;
+    }
+  }
+
   async startScreenCapture(rtmp) {
     try {
-      // Stream a local video file in loop to RTMP
-      const videoPath = process.env.VIDEO_FILE
-        ? path.isAbsolute(process.env.VIDEO_FILE)
-          ? process.env.VIDEO_FILE
-          : path.join(__dirname, "..", process.env.VIDEO_FILE)
-        : path.join(__dirname, "..", "public", "stream.mp4");
+      // Use YouTube video URL instead of local file
+      const youtubeVideoUrl = process.env.YOUTUBE_VIDEO_URL || 
+        config.YOUTUBE.VIDEO_URL || "https://www.youtube.com/watch?v=d_nSworYRgY";
+      
+      logger.info("Using YouTube video URL:", youtubeVideoUrl);
 
-      if (!fs.existsSync(videoPath)) {
-        throw new Error(
-          `Video file not found at ${videoPath}. Set VIDEO_FILE env or place stream.mp4 in public/`
-        );
-      }
-
+      // Use yt-dlp to get the best streaming URL
+      const streamUrl = await this.getYouTubeStreamUrl(youtubeVideoUrl);
+      
       const ffmpegArgs = [
         "-re", // read input at native frame rate
         "-stream_loop",
         "-1", // loop indefinitely
         "-i",
-        videoPath,
+        streamUrl,
         "-c:v",
         "libx264",
         "-preset",
@@ -123,7 +150,7 @@ class EnhancedStreamManager {
         rtmp,
       ];
 
-      logger.info("Starting ffmpeg to loop video:", videoPath);
+      logger.info("Starting ffmpeg to stream YouTube video");
 
       // Use bundled ffmpeg from @ffmpeg-installer/ffmpeg
       const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;

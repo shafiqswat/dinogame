@@ -64,16 +64,15 @@ class StreamDino24_7 {
 
     // Main page
     this.app.get("/", (req, res) => {
-      const healthPath = path.join(__dirname, "public", "health.html");
-      if (require("fs").existsSync(healthPath)) {
-        res.sendFile(healthPath);
+      const indexPath = path.join(__dirname, "public", "index.html");
+      if (require("fs").existsSync(indexPath)) {
+        res.sendFile(indexPath);
       } else {
         res.json({
           status: "ok",
           message: "StreamDino 24/7 is running!",
           endpoints: {
             health: "/health",
-            live: "/live",
             status: "/api/status",
             system: "/api/system",
           },

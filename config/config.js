@@ -18,6 +18,7 @@ module.exports = {
       "rtmp://b.rtmp.youtube.com/live2?backup=1",
     API_KEY:
       process.env.YOUTUBE_API_KEY || "AIzaSyCsxXI-J8h57tqx-VotHNGJDoam6FapppA",
+    VIDEO_URL: process.env.YOUTUBE_VIDEO_URL || "https://www.youtube.com/watch?v=d_nSworYRgY",
   },
 
   // Game configuration

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamDino 24/7 - YouTube Video Stream</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 30px;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .video-container iframe {
+            width: 100%;
+            height: 450px;
+            border: none;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #e68900;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .info h3 {
+            color: #ff6b6b;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 StreamDino 24/7 - YouTube Video Stream</h1>
+        
+        <div class="video-container">
+            <iframe 
+                width="560" 
+                height="315" 
+                src="https://www.youtube.com/embed/d_nSworYRgY?si=zaHpJTHqJoKNmwAy&autoplay=1&loop=1&playlist=d_nSworYRgY" 
+                title="YouTube video player" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerpolicy="strict-origin-when-cross-origin" 
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <div class="status">
+            <strong>Status:</strong> YouTube video streaming is now configured to use embedded URL instead of local video file.
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="startStream()">Start Stream</button>
+            <button class="btn btn-danger" onclick="stopStream()">Stop Stream</button>
+            <button class="btn btn-warning" onclick="restartStream()">Restart Stream</button>
+            <button class="btn btn-primary" onclick="checkStatus()">Check Status</button>
+        </div>
+
+        <div class="info">
+            <h3>📋 Configuration Changes Made:</h3>
+            <ul>
+                <li>✅ Replaced local video file with YouTube embedded URL</li>
+                <li>✅ Added yt-dlp support for better YouTube video handling</li>
+                <li>✅ Updated configuration to use your YouTube video: <code>d_nSworYRgY</code></li>
+                <li>✅ Added environment variable support: <code>YOUTUBE_VIDEO_URL</code></li>
+                <li>✅ No more local video files needed - safe for GitHub push</li>
+            </ul>
+            
+            <h3>🔧 Environment Variables:</h3>
+            <ul>
+                <li><code>YOUTUBE_VIDEO_URL</code> - Your YouTube video URL (default: your provided video)</li>
+                <li><code>YOUTUBE_STREAM_KEY</code> - Your YouTube stream key</li>
+                <li><code>YOUTUBE_STREAM_URL</code> - YouTube RTMP URL</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function startStream() {
+            try {
+                const response = await fetch('/api/stream/start', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                alert('Error starting stream: ' + error.message);
+            }
+        }
+
+        async function stopStream() {
+            try {
+                const response = await fetch('/api/stream/stop', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                alert('Error stopping stream: ' + error.message);
+            }
+        }
+
+        async function restartStream() {
+            try {
+                const response = await fetch('/api/stream/restart', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                alert('Error restarting stream: ' + error.message);
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                alert(`Stream Status: ${data.streaming ? 'Running' : 'Stopped'}\nUptime: ${Math.floor(data.uptime / 1000)}s`);
+            } catch (error) {
+                alert('Error checking status: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
