@@ -55,8 +55,30 @@ class EnhancedStreamManager {
         return false;
       }
 
+      // Validate stream key format
+      if (!this.isValidStreamKey(streamKey)) {
+        logger.error(
+          "Invalid YouTube stream key format. Please check your stream key."
+        );
+        return false;
+      }
+
       const rtmp = `${streamUrl}/${streamKey}`;
       logger.info("Starting enhanced stream to:", rtmp);
+      logger.info("Stream key format validation: PASSED");
+      logger.info(
+        "🔑 Using stream key:",
+        `${streamKey.substring(0, 4)}-****-****-${streamKey.substring(
+          streamKey.length - 4
+        )}`
+      );
+
+      // Test FFmpeg first
+      const ffmpegWorking = await this.testFFmpeg();
+      if (!ffmpegWorking) {
+        logger.error("FFmpeg is not working properly, cannot start stream");
+        return false;
+      }
 
       // Start screen capture and streaming
       const success = await this.startScreenCapture(rtmp);
@@ -66,6 +88,13 @@ class EnhancedStreamManager {
         this.streamStartTime = Date.now();
         this.restartAttempts = 0;
         logger.info("Enhanced stream started successfully");
+        logger.info("📺 Check YouTube Studio to see if stream appears");
+        logger.info(
+          "🔗 YouTube Studio: https://studio.youtube.com/channel/UCJ8WAUzgVUI5Hfpxf5GO1FA/livestreaming"
+        );
+        logger.info(
+          "💡 If stream doesn't appear, try creating a new live stream in YouTube Studio"
+        );
         return true;
       } else {
         logger.error("Failed to start enhanced stream");
@@ -73,6 +102,54 @@ class EnhancedStreamManager {
       }
     } catch (error) {
       logger.error("Error starting enhanced stream:", error.message);
+      return false;
+    }
+  }
+
+  isValidStreamKey(streamKey) {
+    // YouTube stream keys are typically 4 groups of 4 characters separated by hyphens
+    // Example: abcd-efgh-ijkl-mnop
+    const streamKeyPattern =
+      /^[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}$/;
+    return streamKeyPattern.test(streamKey);
+  }
+
+  async testFFmpeg() {
+    try {
+      const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+      logger.info("Testing FFmpeg before starting stream...");
+
+      const testProc = spawn(ffmpegPath, ["-version"], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      return new Promise((resolve) => {
+        let output = "";
+        testProc.stdout.on("data", (data) => {
+          output += data.toString();
+        });
+
+        testProc.stderr.on("data", (data) => {
+          output += data.toString();
+        });
+
+        testProc.on("close", (code) => {
+          if (code === 0) {
+            logger.info("FFmpeg test successful:", output.split("\n")[0]);
+            resolve(true);
+          } else {
+            logger.error("FFmpeg test failed with code:", code);
+            resolve(false);
+          }
+        });
+
+        testProc.on("error", (error) => {
+          logger.error("FFmpeg test error:", error.message);
+          resolve(false);
+        });
+      });
+    } catch (error) {
+      logger.error("FFmpeg test exception:", error.message);
       return false;
     }
   }
@@ -142,20 +219,35 @@ class EnhancedStreamManager {
         htmlPath
       );
 
-      // Use a very simple FFmpeg approach that's more compatible
-      // This creates a basic color test pattern that should work reliably
+      // Create a simple test pattern using the most basic approach
+      // This avoids any complex filters that might cause crashes
       const ffmpegArgs = [
-        "-f", "lavfi",
-        "-i", "color=c=black:s=1280x720:r=30",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-tune", "zerolatency",
-        "-pix_fmt", "yuv420p",
-        "-b:v", "1000k",
-        "-maxrate", "1000k",
-        "-bufsize", "2000k",
-        "-g", "30",
-        "-f", "flv",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=black:size=1280x720:rate=30",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
+        "-b:v",
+        "1000k",
+        "-maxrate",
+        "1000k",
+        "-bufsize",
+        "2000k",
+        "-g",
+        "30",
+        "-metadata",
+        "title=StreamDino 24/7 Live Stream",
+        "-metadata",
+        "description=24/7 Chrome Dino Game Stream",
+        "-metadata",
+        "comment=Live streaming test",
+        "-f",
+        "flv",
         rtmp,
       ];
 
@@ -165,9 +257,14 @@ class EnhancedStreamManager {
       const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
       logger.info(`Using FFmpeg (installer) at: ${ffmpegPath}`);
 
-      // Start ffmpeg
+      // Start ffmpeg with additional environment variables for better compatibility
       this.ffmpegProc = spawn(ffmpegPath, ffmpegArgs, {
         stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH || "",
+          FFREPORT: "file=ffmpeg.log:level=32", // Enable detailed logging
+        },
       });
 
       // Monitor ffmpeg process
@@ -222,8 +319,71 @@ class EnhancedStreamManager {
 
       return true;
     } catch (error) {
-      logger.error("Failed to start screen capture:", error.message);
-      return false;
+      logger.error(
+        "Failed to start screen capture with primary method:",
+        error.message
+      );
+
+      // Try fallback method with even simpler configuration
+      try {
+        logger.info("Trying fallback FFmpeg method...");
+
+        const fallbackArgs = [
+          "-f",
+          "lavfi",
+          "-i",
+          "testsrc=duration=86400:size=640x480:rate=15",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-b:v",
+          "250k",
+          "-f",
+          "flv",
+          rtmp,
+        ];
+
+        this.ffmpegProc = spawn(ffmpegPath, fallbackArgs, {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: {
+            ...process.env,
+            LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH || "",
+          },
+        });
+
+        // Monitor fallback process
+        this.ffmpegProc.stderr.on("data", (data) => {
+          const output = data.toString();
+          if (output.includes("error") || output.includes("Error")) {
+            logger.error("FFmpeg fallback error:", output.trim());
+          } else if (output.includes("frame=")) {
+            logger.debug("FFmpeg fallback frame:", output.trim());
+          }
+        });
+
+        this.ffmpegProc.on("exit", (code, signal) => {
+          logger.warn(
+            `FFmpeg fallback process exited with code ${code} and signal ${signal}`
+          );
+          this.streaming = false;
+          this.scheduleRestart();
+        });
+
+        this.ffmpegProc.on("error", (error) => {
+          logger.error("FFmpeg fallback process error:", error.message);
+          this.streaming = false;
+          this.scheduleRestart();
+        });
+
+        logger.info("Fallback FFmpeg method started");
+        return true;
+      } catch (fallbackError) {
+        logger.error("Fallback method also failed:", fallbackError.message);
+        return false;
+      }
     }
   }
 

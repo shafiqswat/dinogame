@@ -224,6 +224,42 @@ class StreamDino24_7 {
       }
     });
 
+    // YouTube stream diagnostics endpoint
+    this.app.get("/api/youtube-diagnostics", (req, res) => {
+      try {
+        const streamUrl = process.env.YOUTUBE_STREAM_URL || config.YOUTUBE.STREAM_URL || "";
+        const streamKey = process.env.YOUTUBE_STREAM_KEY || config.YOUTUBE.STREAM_KEY || "";
+        const channelId = process.env.YOUTUBE_CHANNEL_ID || config.YOUTUBE.CHANNEL_ID || "";
+
+        // Validate stream key format
+        const streamKeyPattern = /^[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}$/;
+        const streamKeyValid = streamKeyPattern.test(streamKey);
+
+        const diagnostics = {
+          streamUrl: streamUrl,
+          streamKey: streamKey ? `${streamKey.substring(0, 4)}-****-****-${streamKey.substring(streamKey.length - 4)}` : "Not set",
+          channelId: channelId,
+          streamKeyValid: streamKeyValid,
+          youtubeStudioUrl: `https://studio.youtube.com/channel/${channelId}/livestreaming`,
+          troubleshooting: {
+            step1: "1. Go to YouTube Studio and create a new live stream",
+            step2: "2. Copy the stream key (format: abcd-efgh-ijkl-mnop)",
+            step3: "3. Set environment variable: YOUTUBE_STREAM_KEY=your-stream-key",
+            step4: "4. Restart the application and try streaming again",
+            step5: "5. Check YouTube Studio to see if stream appears"
+          }
+        };
+
+        res.json(diagnostics);
+      } catch (error) {
+        logger.error("YouTube diagnostics error:", error.message);
+        res.status(500).json({
+          error: "Failed to get YouTube diagnostics",
+          message: error.message
+        });
+      }
+    });
+
     // 404 handler
     this.app.use("*", (req, res) => {
       res.status(404).json({ error: "Endpoint not found" });
@@ -291,7 +327,7 @@ class StreamDino24_7 {
       // Auto-start stream if environment variable is set
       if (process.env.AUTO_START_STREAM === "true") {
         logger.info("Auto-start stream enabled, starting stream...");
-        setTimeout(() => this.startStream(), 5000);
+        setTimeout(() => this.startStream(), 10000); // Increased delay to allow system to stabilize
       }
     } catch (error) {
       logger.error("Failed to start application:", error.message);

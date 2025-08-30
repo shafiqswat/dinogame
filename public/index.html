@@ -119,6 +119,7 @@
             <button class="btn btn-warning" onclick="restartStream()">Restart Stream</button>
             <button class="btn btn-primary" onclick="checkStatus()">Check Status</button>
             <button class="btn btn-primary" onclick="testFFmpeg()">Test FFmpeg</button>
+            <button class="btn btn-primary" onclick="checkYouTubeDiagnostics()">YouTube Diagnostics</button>
         </div>
 
         <div class="info">
@@ -192,6 +193,30 @@
                 }
             } catch (error) {
                 alert('Error testing FFmpeg: ' + error.message);
+            }
+        }
+
+        async function checkYouTubeDiagnostics() {
+            try {
+                const response = await fetch('/api/youtube-diagnostics');
+                const data = await response.json();
+                
+                let message = `YouTube Stream Diagnostics:\n\n`;
+                message += `Stream URL: ${data.streamUrl}\n`;
+                message += `Stream Key: ${data.streamKey}\n`;
+                message += `Channel ID: ${data.channelId}\n`;
+                message += `Stream Key Valid: ${data.streamKeyValid ? 'YES' : 'NO'}\n\n`;
+                message += `Troubleshooting Steps:\n`;
+                message += `${data.troubleshooting.step1}\n`;
+                message += `${data.troubleshooting.step2}\n`;
+                message += `${data.troubleshooting.step3}\n`;
+                message += `${data.troubleshooting.step4}\n`;
+                message += `${data.troubleshooting.step5}\n\n`;
+                message += `YouTube Studio: ${data.youtubeStudioUrl}`;
+                
+                alert(message);
+            } catch (error) {
+                alert('Error checking YouTube diagnostics: ' + error.message);
             }
         }
     </script>
