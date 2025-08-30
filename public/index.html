@@ -118,6 +118,7 @@
             <button class="btn btn-danger" onclick="stopStream()">Stop Stream</button>
             <button class="btn btn-warning" onclick="restartStream()">Restart Stream</button>
             <button class="btn btn-primary" onclick="checkStatus()">Check Status</button>
+            <button class="btn btn-primary" onclick="testFFmpeg()">Test FFmpeg</button>
         </div>
 
         <div class="info">
@@ -177,6 +178,20 @@
                 alert(`Stream Status: ${data.streaming ? 'Running' : 'Stopped'}\nUptime: ${Math.floor(data.uptime / 1000)}s`);
             } catch (error) {
                 alert('Error checking status: ' + error.message);
+            }
+        }
+
+        async function testFFmpeg() {
+            try {
+                const response = await fetch('/api/test-ffmpeg');
+                const data = await response.json();
+                if (data.success) {
+                    alert(`FFmpeg Test: SUCCESS\nVersion: ${data.version}\nPath: ${data.path}`);
+                } else {
+                    alert(`FFmpeg Test: FAILED\nError: ${data.message}\nDetails: ${data.error || data.output || 'No details'}`);
+                }
+            } catch (error) {
+                alert('Error testing FFmpeg: ' + error.message);
             }
         }
     </script>

@@ -169,6 +169,61 @@ class StreamDino24_7 {
       });
     });
 
+    // FFmpeg test endpoint
+    this.app.get("/api/test-ffmpeg", async (req, res) => {
+      try {
+        const { spawn } = require("child_process");
+        const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+
+        logger.info("Testing FFmpeg installation...");
+
+        const testProc = spawn(ffmpegPath, ["-version"], {
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+
+        let output = "";
+        testProc.stdout.on("data", (data) => {
+          output += data.toString();
+        });
+
+        testProc.stderr.on("data", (data) => {
+          output += data.toString();
+        });
+
+        testProc.on("close", (code) => {
+          if (code === 0) {
+            res.json({
+              success: true,
+              message: "FFmpeg is working correctly",
+              version: output.split("\n")[0],
+              path: ffmpegPath,
+            });
+          } else {
+            res.json({
+              success: false,
+              message: "FFmpeg test failed",
+              code: code,
+              output: output,
+            });
+          }
+        });
+
+        testProc.on("error", (error) => {
+          res.json({
+            success: false,
+            message: "FFmpeg test error",
+            error: error.message,
+          });
+        });
+      } catch (error) {
+        res.json({
+          success: false,
+          message: "FFmpeg test exception",
+          error: error.message,
+        });
+      }
+    });
+
     // 404 handler
     this.app.use("*", (req, res) => {
       res.status(404).json({ error: "Endpoint not found" });

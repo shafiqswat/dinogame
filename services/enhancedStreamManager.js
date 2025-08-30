@@ -142,39 +142,20 @@ class EnhancedStreamManager {
         htmlPath
       );
 
-      // For now, we'll use a simple approach that creates a test pattern
-      // since direct YouTube streaming can be complex
+      // Use a very simple FFmpeg approach that's more compatible
+      // This creates a basic color test pattern that should work reliably
       const ffmpegArgs = [
-        "-f",
-        "lavfi",
-        "-i",
-        "testsrc=duration=86400:size=1280x720:rate=30",
-        "-f",
-        "lavfi",
-        "-i",
-        "sine=frequency=1000:duration=86400",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-pix_fmt",
-        "yuv420p",
-        "-b:v",
-        "2500k",
-        "-maxrate",
-        "2500k",
-        "-bufsize",
-        "5000k",
-        "-g",
-        "60",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-ar",
-        "44100",
-        "-f",
-        "flv",
+        "-f", "lavfi",
+        "-i", "color=c=black:s=1280x720:r=30",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-tune", "zerolatency",
+        "-pix_fmt", "yuv420p",
+        "-b:v", "1000k",
+        "-maxrate", "1000k",
+        "-bufsize", "2000k",
+        "-g", "30",
+        "-f", "flv",
         rtmp,
       ];
 
@@ -196,6 +177,10 @@ class EnhancedStreamManager {
           logger.error("FFmpeg error:", output.trim());
         } else if (output.includes("frame=")) {
           logger.debug("FFmpeg frame:", output.trim());
+        } else if (output.includes("Stream mapping")) {
+          logger.info("FFmpeg stream mapping:", output.trim());
+        } else if (output.includes("Output")) {
+          logger.info("FFmpeg output:", output.trim());
         }
       });
 
@@ -217,9 +202,19 @@ class EnhancedStreamManager {
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error("FFmpeg startup timeout"));
-        }, 10000);
+        }, 15000);
+
+        // Check if process is still running
+        const checkProcess = setInterval(() => {
+          if (this.ffmpegProc && !this.ffmpegProc.killed) {
+            clearInterval(checkProcess);
+            clearTimeout(timeout);
+            resolve();
+          }
+        }, 1000);
 
         this.ffmpegProc.stderr.once("data", () => {
+          clearInterval(checkProcess);
           clearTimeout(timeout);
           resolve();
         });
